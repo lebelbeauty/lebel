@@ -2673,7 +2673,7 @@ function orderItems(){const arr=[];FLAT.forEach(x=>{const q=cart[x.k];if(!q)retu
     if(ch==='tg'){url='https://t.me/kupi_project?text='+enc;prefilled=true;}
     else if(ch==='wa'){url='https://wa.me/79119222158?text='+enc;prefilled=true;}
     else if(ch==='max'){url='https://max.ru/u/f9LHodD0cOKDwdljvEfz88E2JH5biJmyNDj2J3a07cOeUdIhtDiRqmhPA4k';copied=true;note='текст заказа скопирован — вставьте (Ctrl+V) в открывшийся МАКС';}
-    else if(ch==='vk'){url='https://vk.com/id490754727';copied=true;note='текст заказа скопирован — вставьте (Ctrl+V) в ВК';}
+    else if(ch==='vk'){url='https://vk.com/im?sel=490754727';copied=true;note='текст заказа скопирован — вставьте (Ctrl+V) в ВК';}
     if(copied){try{navigator.clipboard.writeText(txt)}catch(e){}}
     if(url)window.open(url,'_blank');
     return {note,prefilled,txt};
