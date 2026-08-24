@@ -2672,11 +2672,11 @@ function orderItems(){const arr=[];FLAT.forEach(x=>{const q=cart[x.k];if(!q)retu
     let url=null,copied=false,note='',prefilled=false;
     if(ch==='tg'){url='https://t.me/kupi_project?text='+enc;prefilled=true;}
     else if(ch==='wa'){url='https://wa.me/79119222158?text='+enc;prefilled=true;}
-    else if(ch==='max'){url='https://max.ru/u/f9LHodD0cOKDwdljvEfz88E2JH5biJmyNDj2J3a07cOeUdIhtDiRqmhPA4k';copied=true;note='текст заказа скопирован — вставьте (Ctrl+V) в открывшийся МАКС';}
-    else if(ch==='vk'){url='https://vk.com/im?sel=490754727';copied=true;note='текст заказа скопирован — вставьте (Ctrl+V) в ВК';}
+    else if(ch==='max'){url='https://max.ru/u/f9LHodD0cOKDwdljvEfz88E2JH5biJmyNDj2J3a07cOeUdIhtDiRqmhPA4k';copied=true;note='текст заказа уже скопирован — просто пришлите его нам в МАКС';}
+    else if(ch==='vk'){url='https://vk.com/im?sel=490754727';copied=true;note='текст заказа уже скопирован — просто пришлите его нам в ВК';}
     if(copied){try{navigator.clipboard.writeText(txt)}catch(e){}}
-    if(url)window.open(url,'_blank');
-    return {note,prefilled,txt};
+    if(prefilled&&url)window.open(url,'_blank');
+    return {note,prefilled,txt,url};
    }
    function sendVia(ch){
     const err=validateOrder();if(err){alert(err);return}
@@ -2689,10 +2689,14 @@ function orderItems(){const arr=[];FLAT.forEach(x=>{const q=cart[x.k];if(!q)retu
     }
     const who={tg:'Telegram',wa:'WhatsApp',max:'МАКС',vk:'ВКонтакте'}[ch]||ch;
     const safe=r.txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    const body=r.prefilled
-     ? '<p style="margin:8px 0">Открылся '+who+' с готовым текстом заказа. Нажмите «Отправить», и менеджер LebeL получит заявку.</p>'
-     : '<p style="margin:8px 0">Открылся '+who+' — '+r.note+'.</p>'+
-       '<textarea readonly onclick="this.select()" style="width:100%;height:150px;margin:6px 0;font-size:13px;padding:8px;border:1px solid #ccc;border-radius:8px">'+safe+'</textarea>';
+    let body;
+    if(r.prefilled){
+     body='<p style="margin:8px 0">Открылся '+who+' с готовым текстом заказа. Нажмите «Отправить», и менеджер LebeL получит заявку.</p>';
+    }else{
+     body='<p style="margin:8px 0">'+r.note+'.</p>'+
+      '<textarea readonly onclick="this.select()" style="width:100%;height:150px;margin:6px 0;font-size:13px;padding:8px;border:1px solid #ccc;border-radius:8px">'+safe+'</textarea>'+
+      '<div class="mbtns"><button class="wa" onclick="window.open(\''+r.url+'\',\'_blank\')">Открыть '+who+'</button></div>';
+    }
     document.querySelector('#modal .mbox').innerHTML=
      '<h3>✅ Заявка готова к отправке</h3>'+body+
      '<div class="mbtns"><button class="cl" onclick="hideModal()">Готово</button></div>';
