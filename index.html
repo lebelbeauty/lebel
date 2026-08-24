@@ -58,6 +58,7 @@ h2.cat{font-size:15px;margin:18px 4px 8px;color:#666;text-transform:uppercase;le
 .mbox input{width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:9px;font-size:15px;margin-bottom:9px}
 .mbtns{display:flex;flex-direction:column;gap:8px;margin-top:6px}
 .mbtns button{border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:700;cursor:pointer}
+.chlabel{font-size:14px;color:#555;margin:6px 2px 2px}
 .wa{background:#25d366;color:#fff}.xl{background:#1f2937;color:#fff}.cp{background:#eee}.cl{background:transparent;color:#888}
 </style>
 </head>
@@ -84,7 +85,11 @@ h2.cat{font-size:15px;margin:18px 4px 8px;color:#666;text-transform:uppercase;le
 <input id="f_salon" placeholder="Салон / город">
 <input id="f_phone" placeholder="Телефон или Telegram / VK *">
 <div class="mbtns">
-<button class="wa" onclick="submitOrder()">Отправить заявку</button>
+<div class="chlabel">Куда вам удобнее отправить заявку?</div>
+<button class="wa" onclick="sendVia('tg')">📨 Telegram</button>
+<button class="wa" onclick="sendVia('wa')">💬 WhatsApp</button>
+<button class="wa" onclick="sendVia('max')">🌐 МАКС</button>
+<button class="wa" onclick="sendVia('vk')">🆔 ВКонтакте</button>
 <button class="xl" onclick="sendXL()">Скачать файл заказа (Excel)</button>
 <button class="cp" onclick="copyTxt()">Скопировать текст заказа</button>
 <button class="cl" onclick="hideModal()">Закрыть</button>
@@ -2651,40 +2656,41 @@ function sendWA(){const t=encodeURIComponent(orderText());
  window.open(WHATSAPP?`https://wa.me/${WHATSAPP}?text=${t}`:`https://wa.me/?text=${t}`)}
 function orderItems(){const arr=[];FLAT.forEach(x=>{const q=cart[x.k];if(!q)return;
  arr.push({n:x.it.n,a:x.it.a,v:x.it.v,p:x.it.p,q})});return arr}
-  async function submitOrder(){
+  function validateOrder(){
    const f=fields();const name=f.name==='—'?'':f.name.trim();const phone=f.phone==='—'?'':f.phone.trim();
-   if(!name||!phone){alert('Укажите имя и телефон для связи');return}
+   if(!name||!phone)return 'Укажите имя и телефон для связи';
    const t=totals();
-   if(!t.city){alert('Выберите город доставки');return}
-   const items=orderItems();if(!items.length){alert('Корзина пуста');return}
-   const btn=document.querySelector('#modal .wa');
-   if(ENDPOINT.indexOf('PASTE_HOSTING_URL')>=0){
-    const txt=encodeURIComponent('Здравствуйте! Хочу оформить заказ LebeL:\n\n'+orderText());
-    window.open('https://t.me/kupi_project?text='+txt,'_blank');
-    document.querySelector('#modal .mbox').innerHTML=
-     '<h3>✅ Заявка готова к отправке</h3>'+
-     '<p style="margin:8px 0">Открылся Telegram с готовым текстом заказа — нажмите «Отправить», и менеджер LebeL получит заявку.</p>'+
-     '<div class="mbtns"><button class="cl" onclick="hideModal()">Готово</button></div>';
-    return;
+   if(!t.city)return 'Выберите город доставки';
+   if(!orderItems().length)return 'Корзина пуста';
+   return null;
+  }
+  function openChannel(ch){
+   const txt=orderText();const enc=encodeURIComponent(txt);let url=null,copied=false,note='';
+   if(ch==='tg'){url='https://t.me/kupi_project?text='+enc;}
+   else if(ch==='wa'){url='https://wa.me/79119222158?text='+enc;}
+   else if(ch==='max'){url='https://max.ru/u/f9LHodD0cOKDwdljvEfz88E2JH5biJmyNDj2J3a07cOeUdIhtDiRqmhPA4k';copied=true;note='текст заказа скопирован — вставьте и отправьте в МАКС';}
+   else if(ch==='vk'){url='https://vk.com/id490754727';copied=true;note='текст заказа скопирован — вставьте и отправьте в ВК';}
+   if(copied){try{navigator.clipboard.writeText(txt)}catch(e){}}
+   if(url)window.open(url,'_blank');
+   return note;
+  }
+  function sendVia(ch){
+   const err=validateOrder();if(err){alert(err);return}
+   const note=openChannel(ch);
+   if(ENDPOINT.indexOf('PASTE_HOSTING_URL')<0){
+    const t=totals();const f=fields();const items=orderItems();
+    fetch(ENDPOINT+'?act=order',{method:'POST',headers:{'Content-Type':'application/json'},
+     body:JSON.stringify({name:f.name,salon:f.salon,phone:f.phone,city:t.city,weightKg:+t.kg.toFixed(2),
+      delivery:t.delivery,goods:t.goods,total:t.total,items,count:t.cnt})}).catch(()=>{})
    }
-   btn.disabled=true;btn.textContent='Отправляем…';
-   try{
-    const res=await fetch(ENDPOINT+'?act=order',{method:'POST',headers:{'Content-Type':'application/json'},
-     body:JSON.stringify({name,salon:f.salon,phone,city:t.city,weightKg:+t.kg.toFixed(2),
-      delivery:t.delivery,goods:t.goods,total:t.total,items,count:t.cnt})});
-   const j=await res.json();
-   if(j&&j.ok){
-    const id=j.id;
-    document.querySelector('#modal .mbox').innerHTML=
-     '<h3>✅ Заявка №'+id+' отправлена</h3>'+
-     '<p style="margin:8px 0">Менеджер LebeL свяжется с вами в ближайшее время.</p>'+
-     (BOT?'<p style="margin:8px 0">Подтверждение в Telegram: <a href="https://t.me/'+BOT+'?start=confirm_'+id+'" target="_blank">открыть бота</a></p>':'')+
-     '<div class="mbtns"><button class="cl" onclick="hideModal()">Готово</button></div>';
-    if(BOT)window.open('https://t.me/'+BOT+'?start=confirm_'+id,'_blank');
-    cart={};try{localStorage.removeItem('lebel_cart')}catch(e){}render();
-   }else{alert('Не удалось отправить. Попробуйте ещё раз или напишите нам в WhatsApp.');btn.disabled=false;btn.textContent='Отправить заявку'}
-  }catch(e){alert('Ошибка сети. Попробуйте ещё раз или напишите нам в WhatsApp.');btn.disabled=false;btn.textContent='Отправить заявку'}
- }
+   const who={tg:'Telegram',wa:'WhatsApp',max:'МАКС',vk:'ВКонтакте'}[ch]||ch;
+   const msg=note?(' — '+note):' с готовым текстом заказа. Нажмите «Отправить», и менеджер LebeL получит заявку.';
+   document.querySelector('#modal .mbox').innerHTML=
+    '<h3>✅ Заявка готова к отправке</h3>'+
+    '<p style="margin:8px 0">Открылся '+who+msg+'</p>'+
+    '<div class="mbtns"><button class="cl" onclick="hideModal()">Готово</button></div>';
+   cart={};try{localStorage.removeItem('lebel_cart')}catch(e){}render();
+  }
 function copyTxt(){navigator.clipboard.writeText(orderText()).then(()=>alert('Заказ скопирован — вставьте в сообщение'))}
 let xlLoaded=false;
 function loadXL(cb){if(xlLoaded)return cb();
