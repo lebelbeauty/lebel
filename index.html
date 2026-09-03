@@ -61,6 +61,11 @@ h2.cat{font-size:15px;margin:18px 4px 8px;color:#666;text-transform:uppercase;le
 .mbtns button{border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:700;cursor:pointer}
 .chlabel{font-size:14px;color:#555;margin:6px 2px 2px}
 .wa{background:#25d366;color:#fff}.xl{background:#1f2937;color:#fff}.cp{background:#eee}.cl{background:transparent;color:#888}
+.sethead{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin:18px 4px 8px}
+.sethead .cat{margin:0}
+.setcheck{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1.5px solid #e8590c;color:#e8590c;border-radius:20px;padding:8px 14px;font-weight:700;font-size:13px;cursor:pointer;user-select:none}
+.setcheck input{width:18px;height:18px;accent-color:#e8590c;cursor:pointer}
+.setcheck.on{background:#e8590c;color:#fff}
 </style>
 </head>
 <body>
@@ -136,6 +141,13 @@ let FLAT=[];
 CATS.forEach((c,ci)=>c.groups.forEach((g,gi)=>g.items.forEach((it,ii)=>{
  FLAT.push({k:ci+'_'+gi+'_'+ii,c:c.name,b:g.b,it});
 })));
+// === Набор «Абсолютное счастье»: одна галочка = весь набор по цене набора ===
+const SET_NAME='Абсолютное счастье';
+const SET_PRICE=45929;
+let SET_KEYS=FLAT.filter(x=>x.c===SET_NAME).map(x=>x.k);
+function setSelected(){return SET_KEYS.length>0&&SET_KEYS.every(k=>cart[k]>0)}
+function toggleSet(){if(setSelected()){SET_KEYS.forEach(k=>delete cart[k]);}else{SET_KEYS.forEach(k=>cart[k]=(cart[k]||0)+1);}save()}
+
 function render(){
  document.querySelectorAll('#chips .chip').forEach(b=>b.classList.toggle('on',b.dataset.c===chip));
  let html='',shown=0;
@@ -160,7 +172,15 @@ function render(){
    });
    if(rows)catHtml+=`<div class="grp"><div class="ghead">${esc(g.b)}<small>${g.items.length}</small></div>${rows}</div>`;
   });
-  if(catHtml){html+=`<h2 class="cat">${esc(c.name)}</h2>`+catHtml}
+  if(catHtml){
+   if(c.name===SET_NAME){
+    const on=setSelected();
+    html+=`<div class="sethead"><h2 class="cat">${esc(c.name)}</h2>
+      <label class="setcheck${on?' on':''}"><input type="checkbox" ${on?'checked':''} onchange="toggleSet()"><span>Выбрать весь набор — ${money(SET_PRICE)} ₽</span></label></div>`+catHtml;
+   } else {
+    html+=`<h2 class="cat">${esc(c.name)}</h2>`+catHtml;
+   }
+  }
  });
  listEl.innerHTML=html;$('#empty').style.display=shown?'none':'block';bar();
 }
@@ -172,10 +192,12 @@ const chipsEl=document.getElementById('chips');
 function inc(k){cart[k]=(cart[k]||0)+1;save()}
 function dec(k){if(cart[k]>1)cart[k]--;else delete cart[k];save()}
 function save(){localStorage.setItem('lebel_cart',JSON.stringify(cart));render()}
-function totals(){let cnt=0,goods=0;FLAT.forEach(x=>{const n=cart[x.k];if(n){cnt+=n;goods+=n*x.it.p}});
+function totals(){let cnt=0,goods=0;const setOn=setSelected();
+ FLAT.forEach(x=>{const n=cart[x.k];if(n){if(setOn&&SET_KEYS.includes(x.k))return;cnt+=n;goods+=n*x.it.p}});
+ if(setOn){cnt+=SET_KEYS.length;goods+=SET_PRICE;}
  const city=$('#city').value;const kg=orderWeight()/1000;
  const delivery=city?deliveryCost(city,kg):0;const total=goods+delivery;
- return{cnt,goods,city,kg,delivery,total}}
+ return{cnt,goods,setOn,city,kg,delivery,total}}
 function bar(){const t=totals();
  let h=`Позиций: <b>${t.cnt}</b>`;
  if(t.cnt){h+=`&nbsp;•&nbsp;Товары: <b>${money(t.goods)} ₽</b>`;
@@ -193,11 +215,16 @@ function zoom(fn){const z=document.getElementById('zoom');
  im.src='img/'+fn.replace(/^p/,'b')}
 function hideZoom(){document.getElementById('zoom').style.display='none'}
 function orderText(){
- const{name,salon,phone}=fields();const t=totals();
+ const{name,salon,phone}=fields();const t=totals();const setOn=t.setOn;
  let txt=`ЗАКАЗ LEBEL\nИмя: ${name}\nСалон/город: ${salon}\nСвязь: ${phone}\n`;
  if(t.city)txt+=`Город доставки: ${t.city} (СДЭК, ${t.kg.toFixed(1)} кг)\n`;
  let i=0,sum=0,lastCat='',lastGrp='';
- FLAT.forEach(x=>{const n=cart[x.k];if(!n)return;
+ if(setOn){
+  i++;sum+=SET_PRICE;
+  txt+=`— ${SET_NAME} —\n[${SET_NAME}]\n`;
+  txt+=`${i}. [НАБОР] «${SET_NAME}» — салонная программа INFINITY AURUM (${SET_KEYS.length} позиций) ×1 = ${money(SET_PRICE)} ₽\n`;
+ }
+ FLAT.forEach(x=>{const n=cart[x.k];if(!n||(setOn&&SET_KEYS.includes(x.k)))return;
   if(x.c!==lastCat){txt+=`— ${x.c} —\n`;lastCat=x.c;lastGrp=''}
   if(x.b!==lastGrp){txt+=`[${x.b}]\n`;lastGrp=x.b}
   i++;sum+=n*x.it.p;
@@ -208,7 +235,9 @@ function fields(){return{name:$('#f_name').value.trim()||'—',
  salon:$('#f_salon').value.trim()||'—',phone:$('#f_phone').value.trim()||'—'}}
 function sendWA(){const t=encodeURIComponent(orderText());
  window.open(WHATSAPP?`https://wa.me/${WHATSAPP}?text=${t}`:`https://wa.me/?text=${t}`)}
-function orderItems(){const arr=[];FLAT.forEach(x=>{const q=cart[x.k];if(!q)return;
+function orderItems(){const arr=[];const setOn=setSelected();
+ if(setOn)arr.push({n:'[НАБОР] «'+SET_NAME+'» — программа INFINITY AURUM ('+SET_KEYS.length+' позиций)',a:'',v:'набор',p:SET_PRICE,q:1});
+ FLAT.forEach(x=>{const q=cart[x.k];if(!q||(setOn&&SET_KEYS.includes(x.k)))return;
  arr.push({n:x.it.n,a:x.it.a,v:x.it.v,p:x.it.p,q})});return arr}
   function validateOrder(){
    const f=fields();const name=f.name==='—'?'':f.name.trim();const phone=f.phone==='—'?'':f.phone.trim();
@@ -264,11 +293,15 @@ function loadXL(cb){if(xlLoaded)return cb();
   s2.onerror=()=>alert('Нет интернета для модуля Excel — пришлите текст заказа');document.head.appendChild(s2)};
  document.head.appendChild(s)}
 function sendXL(){loadXL(()=>{
- const t=totals();
+ const t=totals();const setOn=t.setOn;
  const sn=[],sheets={};
  CATS.forEach((c,ci)=>{const aoa=[['№','Название товара','Артикул','Объём','Цена ₽','ЗАКАЗ, шт']];
-  c.groups.forEach((g,gi)=>g.items.forEach((it,ii)=>{
-   aoa.push([aoa.length,it.n,it.a,it.v,it.p,cart[ci+'_'+gi+'_'+ii]||0])}));
+  if(c.name===SET_NAME&&setOn){
+   aoa.push([1,'[НАБОР] «'+SET_NAME+'» — программа INFINITY AURUM ('+SET_KEYS.length+' позиций)','','набор',SET_PRICE,1]);
+  }else{
+   c.groups.forEach((g,gi)=>g.items.forEach((it,ii)=>{
+    aoa.push([aoa.length,it.n,it.a,it.v,it.p,cart[ci+'_'+gi+'_'+ii]||0])}));
+  }
   if(t.city){aoa.push([]);aoa.push(['Доставка СДЭК ('+t.city+', '+t.kg.toFixed(1)+' кг)',t.delivery+' ₽']);
    aoa.push(['ИТОГО с доставкой',t.total+' ₽'])}
   const k=c.name.replace(/[\[\]\:\*\?\/\\]/g,'-').slice(0,31);
